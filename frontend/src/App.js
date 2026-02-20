@@ -3,7 +3,10 @@ import Plot from 'react-plotly.js';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = 'http://localhost:5000/api';
+// Use localhost for development, update to your deployed backend URL for production
+// For GitHub Pages: Deploy your backend to a cloud service and use its URL here
+// Example: const API_URL = 'https://pump-analyzer-api.herokuapp.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function App() {
   const [pumps, setPumps] = useState([]);
