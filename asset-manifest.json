@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/pump-performance/static/css/main.99593030.css",
+    "main.js": "/pump-performance/static/js/main.888be646.js",
+    "index.html": "/pump-performance/index.html",
+    "main.99593030.css.map": "/pump-performance/static/css/main.99593030.css.map",
+    "main.888be646.js.map": "/pump-performance/static/js/main.888be646.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.99593030.css",
+    "static/js/main.888be646.js"
+  ]
+}
