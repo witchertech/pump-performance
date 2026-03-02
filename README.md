@@ -117,38 +117,11 @@ Get speed range and common speed presets
 - Flow: Q_norm = Q × (N_rated / N_actual)
 - Head: H_norm = H × (N_rated / N_actual)²
 
-## Browser Support
-
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
-
-## Deployment
-
-### GitHub
-Want to share your project? See [GITHUB_DEPLOYMENT.md](GITHUB_DEPLOYMENT.md) for:
-- How to push to GitHub
-- How to share read-only access
-- How to host on GitHub Pages
-
-### Docker (Coming Soon)
-Will add Docker support for easy deployment.
-
 ## Performance
 
 - Handles large datasets (13,000+ rows)
 - Smooth interactions with 1000+ data points
 - Real-time filtering and calculations
-
-## Future Enhancements
-
-- [ ] Export curves as PDF/PNG
-- [ ] Efficiency iso-line overlays
-- [ ] Multiple pump comparison
-- [ ] Power/NPSH curves
-- [ ] Data import from multiple sources
-- [ ] Custom theming
 
 ## Troubleshooting
 
@@ -159,11 +132,3 @@ Will add Docker support for easy deployment.
 **Data not loading?** - Check CSV is in root folder and backend is running
 
 **Slow performance?** - Frontend caches data. Check network tab for API calls.
-
-## License
-
-This project is for educational and commercial use.
-
----
-
-Built with ❤️ for pump performance analysis
