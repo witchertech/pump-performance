@@ -357,105 +357,210 @@ function SinglePumpView({ pumps, stages, testTypes, config, setConfig, curveData
 }
 
 function ComparePumpsView({ pumps, configs, updateConfig, addConfig, removeConfig, compareData, compareSpeed, setCompareSpeed, fetchCompareCurves, loading }) {
+  const [selectedPoint, setSelectedPoint] = useState(null);
+
   return (
-    <div className="space-y-6">
-      {/* Comparison Controls */}
-      <div className="control-panel">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Pump Configurations</h2>
-          <button
-            onClick={addConfig}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-          >
-            + Add Pump
-          </button>
-        </div>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Left Panel - Controls & Details */}
+      <div className="lg:col-span-1">
+        <div className="control-panel sticky top-8 space-y-6">
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Configurations</h2>
+              <button
+                onClick={addConfig}
+                className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium"
+              >
+                + Add
+              </button>
+            </div>
 
-        <div className="space-y-4 mb-6">
-          {configs.map((config, idx) => (
-            <div key={config.id} className="flex gap-3 items-start p-4 bg-gray-50 rounded-lg border-l-4" style={{ borderColor: COLORS[idx % COLORS.length] }}>
-              <div className="flex-1 grid grid-cols-3 gap-3">
-                <select
-                  value={config.pump}
-                  onChange={(e) => updateConfig(config.id, 'pump', e.target.value)}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                >
-                  <option value="">Select Pump</option>
-                  {pumps.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+            <div className="space-y-3 mb-4">
+              {configs.map((config, idx) => (
+                <div key={config.id} className="p-3 bg-gray-50 rounded-lg border-l-4" style={{ borderColor: COLORS[idx % COLORS.length] }}>
+                  <div className="space-y-2">
+                    <select
+                      value={config.pump}
+                      onChange={(e) => updateConfig(config.id, 'pump', e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="">Pump</option>
+                      {pumps.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
 
-                <select
-                  value={config.stage}
-                  onChange={(e) => updateConfig(config.id, 'stage', e.target.value)}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                  disabled={!config.pump}
-                >
-                  <option value="">Select Stage</option>
-                  {config.stages.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                    <select
+                      value={config.stage}
+                      onChange={(e) => updateConfig(config.id, 'stage', e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                      disabled={!config.pump}
+                    >
+                      <option value="">Stage</option>
+                      {config.stages.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
 
-                <select
-                  value={config.testType}
-                  onChange={(e) => updateConfig(config.id, 'testType', e.target.value)}
-                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                  disabled={!config.stage}
-                >
-                  <option value="">Select Test Type</option>
-                  {config.testTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                    <select
+                      value={config.testType}
+                      onChange={(e) => updateConfig(config.id, 'testType', e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                      disabled={!config.stage}
+                    >
+                      <option value="">Test Type</option>
+                      {config.testTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+
+                    {configs.length > 1 && (
+                      <button
+                        onClick={() => removeConfig(config.id)}
+                        className="w-full px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700">Speed (RPM)</label>
+              <input
+                type="number"
+                value={compareSpeed}
+                onChange={(e) => setCompareSpeed(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button
+                onClick={fetchCompareCurves}
+                className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Compare'}
+              </button>
+            </div>
+          </div>
+
+          {/* Selected Point Details */}
+          {selectedPoint && (
+            <div className="space-y-4">
+              <div className="stat-card">
+                <h3 className="font-bold text-gray-900 mb-3">Selected Point</h3>
+                <div className="space-y-2 text-sm">
+                  <p><strong>Pump:</strong> {selectedPoint.pumpLabel}</p>
+                  <p><strong>Flow:</strong> {selectedPoint.flow?.toFixed(2)} L/s</p>
+                  <p><strong>Head:</strong> {selectedPoint.head?.toFixed(2)} m</p>
+                  <p><strong>Efficiency:</strong> {selectedPoint.efficiency?.toFixed(2)}%</p>
+                  <p><strong>Power:</strong> {selectedPoint.power?.toFixed(2)} kW</p>
+                </div>
               </div>
 
-              {configs.length > 1 && (
-                <button
-                  onClick={() => removeConfig(config.id)}
-                  className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm"
-                >
-                  Remove
-                </button>
+              {/* Full Data Logs */}
+              {selectedPoint.all_data && (
+                <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 max-h-96 overflow-y-auto">
+                  <h3 className="font-bold text-gray-900 mb-4 sticky top-0 bg-white py-2 border-b">Full Dataset</h3>
+                  <div className="space-y-4">
+                    {/* Pump Configuration */}
+                    <div>
+                      <h4 className="text-xs font-bold text-blue-700 uppercase mb-2">Configuration</h4>
+                      <div className="space-y-1 text-xs bg-blue-50 p-2 rounded">
+                        {['PumpType', 'Stages', 'Pump_Detail_Impeller_Dia_1st_Stage', 'Pump_Detail_MOC'].map(key => (
+                          selectedPoint.all_data[key] !== null && selectedPoint.all_data[key] !== undefined && (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium text-gray-600">{key}:</span>
+                              <span className="text-gray-800">{selectedPoint.all_data[key]}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Test Information */}
+                    <div>
+                      <h4 className="text-xs font-bold text-green-700 uppercase mb-2">Test Info</h4>
+                      <div className="space-y-1 text-xs bg-green-50 p-2 rounded">
+                        {['TestNo', 'Test_Type_ID', 'Testpoint', 'Speed'].map(key => (
+                          selectedPoint.all_data[key] !== null && selectedPoint.all_data[key] !== undefined && (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium text-gray-600">{key}:</span>
+                              <span className="text-gray-800">{selectedPoint.all_data[key]}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Performance Data */}
+                    <div>
+                      <h4 className="text-xs font-bold text-purple-700 uppercase mb-2">Performance</h4>
+                      <div className="space-y-1 text-xs bg-purple-50 p-2 rounded">
+                        {['Flow', 'Total_Head', 'Pump_Efficiency', 'Pump_Input', 'Pump_Output'].map(key => (
+                          selectedPoint.all_data[key] !== null && selectedPoint.all_data[key] !== undefined && (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium text-gray-600">{key}:</span>
+                              <span className="text-gray-800">{selectedPoint.all_data[key]}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pressure Data */}
+                    <div>
+                      <h4 className="text-xs font-bold text-orange-700 uppercase mb-2">Pressure</h4>
+                      <div className="space-y-1 text-xs bg-orange-50 p-2 rounded">
+                        {['Suction_Pr', 'hs', 'Discharge_Pr', 'hd', 'Vel_Head'].map(key => (
+                          selectedPoint.all_data[key] !== null && selectedPoint.all_data[key] !== undefined && (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium text-gray-600">{key}:</span>
+                              <span className="text-gray-800">{selectedPoint.all_data[key]}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Electrical Data */}
+                    <div>
+                      <h4 className="text-xs font-bold text-red-700 uppercase mb-2">Electrical</h4>
+                      <div className="space-y-1 text-xs bg-red-50 p-2 rounded">
+                        {['voltage', 'P_Current', 'CT_ratio', 'Power_Reading', 'Motor_Input', 'Motor_Efficiency'].map(key => (
+                          selectedPoint.all_data[key] !== null && selectedPoint.all_data[key] !== undefined && (
+                            <div key={key} className="flex justify-between">
+                              <span className="font-medium text-gray-600">{key}:</span>
+                              <span className="text-gray-800">{selectedPoint.all_data[key]}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-          ))}
-        </div>
-
-        <div className="flex gap-4 items-end">
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Rated Speed (RPM)</label>
-            <input
-              type="number"
-              value={compareSpeed}
-              onChange={(e) => setCompareSpeed(parseInt(e.target.value))}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-          <button
-            onClick={fetchCompareCurves}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
-            disabled={loading}
-          >
-            {loading ? 'Loading...' : 'Compare'}
-          </button>
+          )}
         </div>
       </div>
 
-      {/* Comparison Chart */}
-      <div className="chart-container">
-        {loading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-              <p className="text-gray-600">Loading comparison...</p>
+      {/* Right Panel - Chart */}
+      <div className="lg:col-span-3">
+        <div className="chart-container">
+          {loading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className="text-gray-600">Loading comparison...</p>
+              </div>
             </div>
-          </div>
-        ) : compareData ? (
-          <>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Pump Comparison</h2>
-            <ComparisonChart curves={compareData.curves} />
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-96">
-            <p className="text-gray-500">Configure pumps and click Compare</p>
-          </div>
-        )}
+          ) : compareData ? (
+            <>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Pump Comparison</h2>
+              <ComparisonChart curves={compareData.curves} onPointClick={setSelectedPoint} />
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-96">
+              <p className="text-gray-500">Configure pumps and click Compare</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -512,7 +617,7 @@ function SingleCurveChart({ dataPoints, selectedPoint, setSelectedPoint }) {
   );
 }
 
-function ComparisonChart({ curves }) {
+function ComparisonChart({ curves, onPointClick }) {
   const traces = curves.map((curve, idx) => ({
     x: curve.data_points.map(p => p.flow),
     y: curve.data_points.map(p => p.head),
@@ -520,7 +625,13 @@ function ComparisonChart({ curves }) {
     type: 'scatter',
     name: curve.label,
     line: { color: COLORS[idx % COLORS.length], width: 3, shape: 'spline' },
-    marker: { size: 6, color: COLORS[idx % COLORS.length] }
+    marker: { 
+      size: 8, 
+      color: COLORS[idx % COLORS.length],
+      line: { color: '#fff', width: 1 }
+    },
+    customdata: curve.data_points.map(p => [p.efficiency, p.power, curve.label, idx]),
+    hovertemplate: '<b>%{customdata[2]}</b><br>Flow: %{x:.2f} L/s<br>Head: %{y:.2f} m<br>Efficiency: %{customdata[0]:.1f}%<br>Power: %{customdata[1]:.2f} kW<extra></extra>'
   }));
 
   return (
@@ -537,6 +648,24 @@ function ComparisonChart({ curves }) {
         legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#d1d5db', borderwidth: 1 }
       }}
       config={{ responsive: true, displaylogo: false }}
+      onClick={(data) => {
+        if (data.points?.[0]) {
+          const point = data.points[0];
+          const curveIdx = point.customdata[3];
+          const curve = curves[curveIdx];
+          const dataPoint = curve.data_points[point.pointNumber];
+          
+          onPointClick({
+            flow: dataPoint.flow,
+            head: dataPoint.head,
+            efficiency: dataPoint.efficiency,
+            power: dataPoint.power,
+            speed: dataPoint.speed,
+            pumpLabel: curve.label,
+            all_data: dataPoint.all_data
+          });
+        }
+      }}
       style={{ width: '100%', height: '600px' }}
     />
   );

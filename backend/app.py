@@ -263,12 +263,27 @@ def compare_curves():
         
         # Prepare data points
         data_points = []
-        for _, row in filtered.iterrows():
+        for idx, row in enumerate(filtered.iterrows()):
+            _, row_data = row
+            # Include all row data
+            all_data = {}
+            for col in filtered.columns:
+                val = row_data[col]
+                if pd.isna(val):
+                    all_data[col] = None
+                elif isinstance(val, (np.integer, np.floating)):
+                    all_data[col] = float(val)
+                else:
+                    all_data[col] = str(val)
+            
             data_points.append({
-                "flow": float(row["Norm_Flow"]),
-                "head": float(row["Norm_Head"]),
-                "efficiency": float(row["Pump_Efficiency"]),
-                "power": float(row["Pump_Input"]) if pd.notna(row["Pump_Input"]) else 0
+                "flow": float(row_data["Norm_Flow"]),
+                "head": float(row_data["Norm_Head"]),
+                "efficiency": float(row_data["Pump_Efficiency"]),
+                "power": float(row_data["Pump_Input"]) if pd.notna(row_data["Pump_Input"]) else 0,
+                "speed": float(row_data["Speed"]) if pd.notna(row_data["Speed"]) else 0,
+                "all_data": all_data,
+                "row_index": idx
             })
         
         data_points.sort(key=lambda x: x["flow"])
