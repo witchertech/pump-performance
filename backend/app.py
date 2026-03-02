@@ -9,24 +9,31 @@ import json
 app = Flask(__name__)
 CORS(app)
 
-DATA_FILE = "../test.csv"
+DATA_FILE = "../test2.xlsb"  # New dataset
+FALLBACK_FILE = "../test.csv"  # Fallback to old dataset
 
 # ===============================
 # LOAD DATA WITH SMART ENCODING
 # ===============================
 
 def load_data():
-    encodings_to_try = ["utf-8", "latin1", "ISO-8859-1", "cp1252"]
-    df = None
-    for enc in encodings_to_try:
-        try:
-            df = pd.read_csv(DATA_FILE, encoding=enc)
-            break
-        except:
-            continue
-    
-    if df is None:
-        raise Exception("Unable to read test.csv with common encodings")
+    # Try loading .xlsb first, fallback to CSV
+    try:
+        if os.path.exists(DATA_FILE):
+            df = pd.read_excel(DATA_FILE, engine='pyxlsb')
+        else:
+            encodings_to_try = ["utf-8", "latin1", "ISO-8859-1", "cp1252"]
+            df = None
+            for enc in encodings_to_try:
+                try:
+                    df = pd.read_csv(FALLBACK_FILE, encoding=enc)
+                    break
+                except:
+                    continue
+            if df is None:
+                raise Exception("Unable to read data file")
+    except Exception as e:
+        raise Exception(f"Failed to load data: {str(e)}")
     
     df.columns = df.columns.str.strip()
     return df
@@ -96,11 +103,24 @@ def get_curve_data():
     filtered["Norm_Flow"] = filtered["Flow"] * (rated_speed / filtered["Speed"])
     filtered["Norm_Head"] = filtered["Total_Head"] * (rated_speed / filtered["Speed"])**2
     
+    # Calculate efficiency if missing (Efficiency = (ρ × g × Q × H) / (P × 1000) × 100)
+    # Where: ρ=1000 kg/m³, g=9.81 m/s², Q in L/s, H in m, P in kW
+    mask = filtered["Pump_Efficiency"].isna() | (filtered["Pump_Efficiency"] <= 0)
+    if mask.any() and "Pump_Input" in filtered.columns:
+        filtered.loc[mask, "Pump_Efficiency"] = (
+            (filtered.loc[mask, "Norm_Flow"] / 1000) * filtered.loc[mask, "Norm_Head"] * 9.81 * 1000 / 
+            (filtered.loc[mask, "Pump_Input"] * 1000) * 100
+        ).clip(0, 100)
+    
+    # Always use higher head when multiple values exist for same flow
+    filtered = filtered.sort_values(["Norm_Flow", "Norm_Head"], ascending=[True, False])
+    filtered = filtered.drop_duplicates(subset=["Norm_Flow"], keep="first")
+    
     # Remove invalid values
-    filtered = filtered.dropna(subset=["Norm_Flow", "Norm_Head", "Pump_Efficiency"])
+    filtered = filtered.dropna(subset=["Norm_Flow", "Norm_Head"])
     filtered = filtered[filtered["Norm_Flow"] >= 0]
     filtered = filtered[filtered["Norm_Head"] >= 0]
-    filtered = filtered[filtered["Pump_Efficiency"] >= 0]
+    filtered["Pump_Efficiency"] = filtered["Pump_Efficiency"].fillna(0).clip(0, 100)
     
     # Prepare response data
     data_points = []
@@ -191,6 +211,79 @@ def get_rated_speeds(pump_type, stage):
         "max_speed": float(speeds.max()),
         "avg_speed": float(speeds.mean()),
         "common_speeds": [1450, 1470, 2900, 2950, 3000, 3600]
+    })
+
+@app.route('/api/compare-curves', methods=['POST'])
+def compare_curves():
+    """Get multiple pump curves for comparison"""
+    data = request.json
+    if not data or "pumps" not in data:
+        return jsonify({"error": "No pump configurations provided"}), 400
+    
+    pump_configs = data.get("pumps", [])
+    rated_speed = data.get("rated_speed", 3000)
+    
+    results = []
+    for config in pump_configs:
+        pump_type = config.get("pump_type")
+        stage = config.get("stage")
+        test_type = config.get("test_type")
+        
+        # Filter data
+        filtered = df[
+            (df["PumpType"] == pump_type) &
+            (df["Stages"] == stage) &
+            (df["Test_Type_ID"] == test_type)
+        ].copy()
+        
+        if filtered.empty:
+            continue
+        
+        # Normalize
+        filtered["Norm_Flow"] = filtered["Flow"] * (rated_speed / filtered["Speed"])
+        filtered["Norm_Head"] = filtered["Total_Head"] * (rated_speed / filtered["Speed"])**2
+        
+        # Calculate efficiency if missing
+        mask = filtered["Pump_Efficiency"].isna() | (filtered["Pump_Efficiency"] <= 0)
+        if mask.any() and "Pump_Input" in filtered.columns:
+            filtered.loc[mask, "Pump_Efficiency"] = (
+                (filtered.loc[mask, "Norm_Flow"] / 1000) * filtered.loc[mask, "Norm_Head"] * 9.81 * 1000 / 
+                (filtered.loc[mask, "Pump_Input"] * 1000) * 100
+            ).clip(0, 100)
+        
+        # Higher head priority
+        filtered = filtered.sort_values(["Norm_Flow", "Norm_Head"], ascending=[True, False])
+        filtered = filtered.drop_duplicates(subset=["Norm_Flow"], keep="first")
+        
+        # Clean data
+        filtered = filtered.dropna(subset=["Norm_Flow", "Norm_Head"])
+        filtered = filtered[filtered["Norm_Flow"] >= 0]
+        filtered = filtered[filtered["Norm_Head"] >= 0]
+        filtered["Pump_Efficiency"] = filtered["Pump_Efficiency"].fillna(0).clip(0, 100)
+        
+        # Prepare data points
+        data_points = []
+        for _, row in filtered.iterrows():
+            data_points.append({
+                "flow": float(row["Norm_Flow"]),
+                "head": float(row["Norm_Head"]),
+                "efficiency": float(row["Pump_Efficiency"]),
+                "power": float(row["Pump_Input"]) if pd.notna(row["Pump_Input"]) else 0
+            })
+        
+        data_points.sort(key=lambda x: x["flow"])
+        
+        results.append({
+            "pump_type": pump_type,
+            "stage": stage,
+            "test_type": test_type,
+            "data_points": data_points,
+            "label": f"{pump_type} - {stage} - {test_type}"
+        })
+    
+    return jsonify({
+        "curves": results,
+        "rated_speed": rated_speed
     })
 
 @app.route('/health', methods=['GET'])
